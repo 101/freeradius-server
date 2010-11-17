@@ -844,6 +844,11 @@ static SSL_CTX *init_tls_ctx(EAP_TLS_CONF *conf)
 							  NULL, NULL, NULL);
 	}
 
+        if (eaptls_store_idx < 0) {
+                eaptls_store_idx = SSL_get_ex_new_index(0, "eaptls_store_idx",
+                                                          NULL, NULL, NULL);
+        }
+
 	if (eaptls_session_idx < 0) {
 		eaptls_session_idx = SSL_get_ex_new_index(0, "eaptls_session_idx",
 							  NULL, NULL,
