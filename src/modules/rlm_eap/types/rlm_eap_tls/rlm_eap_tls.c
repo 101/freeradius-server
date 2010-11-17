@@ -1088,6 +1088,7 @@ static int eaptls_initiate(void *type_arg, EAP_HANDLER *handler)
 	 */
 	SSL_set_ex_data(ssn->ssl, 0, (void *)handler);
 	SSL_set_ex_data(ssn->ssl, 1, (void *)inst->conf);
+	SSL_set_ex_data(ssn->ssl, 2, (void *)inst->store);
 
 	ssn->length_flag = inst->conf->include_length;
 
