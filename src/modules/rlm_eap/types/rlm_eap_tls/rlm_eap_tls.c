@@ -58,6 +58,16 @@ static CONF_PARSER cache_config[] = {
  	{ NULL, -1, 0, NULL, NULL }           /* end the list */
 };
 
+static CONF_PARSER ocsp_config[] = {
+	{ "check_ocsp", PW_TYPE_BOOLEAN,
+	  offsetof(EAP_TLS_CONF, check_ocsp), NULL, "no"},
+	{ "define_ocsp_responder", PW_TYPE_BOOLEAN,
+	  offsetof(EAP_TLS_CONF, define_ocsp_responder), NULL, "no"},
+	{ "ocsp_url", PW_TYPE_FILENAME,
+	  offsetof(EAP_TLS_CONF, ocsp_url), NULL, NULL },
+	{ NULL, -1, 0, NULL, NULL }           /* end the list */
+};
+
 static CONF_PARSER module_config[] = {
 	{ "rsa_key_exchange", PW_TYPE_BOOLEAN,
 	  offsetof(EAP_TLS_CONF, rsa_key), NULL, "no" },
