@@ -111,6 +111,7 @@ static CONF_PARSER module_config[] = {
 	  offsetof(EAP_TLS_CONF, make_cert_command), NULL, NULL},
 
 	{ "cache", PW_TYPE_SUBSECTION, 0, NULL, (const void *) cache_config },
+	{ "ocsp", PW_TYPE_SUBSECTION, 0, NULL, (const void *) ocsp_config },
 
  	{ NULL, -1, 0, NULL, NULL }           /* end the list */
 };
