@@ -228,8 +228,8 @@ static SSL_SESSION *cbtls_get_session(UNUSED SSL *s,
 }
 
 /*
- * This function extracts the OCSP Responder URL 
- * from an existing x509 certificate.
+ *  This function extracts the OCSP Responder URL 
+ *  from an existing x509 certificate.
  */
 int ocsp_parse_cert_url(X509 *cert, char **phost, char **pport, char **ppath, int *pssl)
 {
@@ -252,6 +252,99 @@ int ocsp_parse_cert_url(X509 *cert, char **phost, char **pport, char **ppath, in
         }
         return 0;
 }
+
+/*
+ *  This function sends an OCSP request to a defined OCSP responder
+ *  and checks the OCSP response for correctness.
+ */
+int ocsp_check(X509_STORE *store, X509 *issuer_cert, X509 *client_cert, EAP_TLS_CONF *conf)
+{
+        OCSP_CERTID *certid;
+        OCSP_REQUEST *req;
+        OCSP_RESPONSE *resp;
+        OCSP_BASICRESP *bresp = NULL;
+        char *host = NULL;
+        char *port = NULL;
+        char *path = NULL;
+        int use_ssl = -1;
+        BIO *cbio;
+        int ocsp_ok;
+        int status;
+
+        /* 
+         * Create OCSP Request 
+         */
+        certid = OCSP_cert_to_id(NULL, client_cert, issuer_cert);
+        req = OCSP_REQUEST_new();
+        OCSP_request_add0_id(req, certid);
+        OCSP_request_add1_nonce(req, NULL, 8);
+
+        /* 
+         * Send OCSP Request and get OCSP Response
+         */
+
+        /* Get OCSP responder URL */
+        if(conf->define_ocsp_responder) {
+                OCSP_parse_url(conf->ocsp_url, &host, &port, &path, &use_ssl);
+        }
+        else {
+                ocsp_parse_cert_url(client_cert, &host, &port, &path, &use_ssl);
+        }
+
+        DEBUG2("[ocsp] --> Resonder URL = http://%s:%s%s", host, port, path);
+
+        /* Setup BIO socket to OCSP responder */
+        cbio = BIO_new_connect(host);
+        BIO_set_conn_port(cbio, port);
+        BIO_do_connect(cbio);
+
+        /* Send OCSP request and wait for response */
+        resp = OCSP_sendreq_bio(cbio, path, req);
+        if(resp==0) {
+                radlog(L_ERR, "Error: Couldn't get OCSP response");
+                ocsp_ok = 0;
+                goto ocsp_end;
+        }
+
+        /* Verify OCSP response */
+        status = OCSP_response_status(resp);
+        if(status != OCSP_RESPONSE_STATUS_SUCCESSFUL) {
+                radlog(L_ERR, "Error: OCSP response status: %s", OCSP_response_status_str(status));
+                ocsp_ok = 0;
+                goto ocsp_end;
+        }
+        bresp = OCSP_response_get1_basic(resp);
+        if(OCSP_check_nonce(req, bresp)!=1) {
+                radlog(L_ERR, "Error: OCSP response has wrong nonce value");
+                ocsp_ok = 0;
+                goto ocsp_end;
+        }
+        if(OCSP_basic_verify(bresp, NULL, store, 0)!=1){
+                radlog(L_ERR, "Error: Couldn't verify OCSP basic response");
+                ocsp_ok = 0;
+                goto ocsp_end;
+        }
+
+        ocsp_ok = 1;
+
+ocsp_end:
+        /* Free OCSP Stuff */
+        OCSP_REQUEST_free(req);
+        OCSP_RESPONSE_free(resp);
+        free(host);
+        free(port);
+        free(path);
+        BIO_free_all(cbio);
+        OCSP_BASICRESP_free(bresp);
+
+        if(ocsp_ok)
+                DEBUG2("[ocsp] --> Certificate is valid!");
+        else
+                DEBUG2("[ocsp] --> Certificate is expired!");
+
+        return ocsp_ok;
+}
+
 
 /*
  *	Before trusting a certificate, you must make sure that the
