@@ -345,7 +345,6 @@ ocsp_end:
         return ocsp_ok;
 }
 
-
 /*
  *	Before trusting a certificate, you must make sure that the
  *	certificate is 'valid'. There are several steps that your
@@ -379,11 +378,13 @@ static int cbtls_verify(int ok, X509_STORE_CTX *ctx)
 	char cn_str[1024];
 	EAP_HANDLER *handler = NULL;
 	X509 *client_cert;
+	X509 *issuer_cert;
 	SSL *ssl;
 	int err, depth;
 	EAP_TLS_CONF *conf;
 	int my_ok = ok;
 	REQUEST *request;
+	X509_STORE *ocsp_store = NULL;
 
 	client_cert = X509_STORE_CTX_get_current_cert(ctx);
 	err = X509_STORE_CTX_get_error(ctx);
@@ -403,6 +404,7 @@ static int cbtls_verify(int ok, X509_STORE_CTX *ctx)
 	handler = (EAP_HANDLER *)SSL_get_ex_data(ssl, 0);
 	request = handler->request;
 	conf = (EAP_TLS_CONF *)SSL_get_ex_data(ssl, 1);
+	ocsp_store = (X509_STORE *)SSL_get_ex_data(ssl, 2);
 
 	/*
 	 *	Get the Subject & Issuer
@@ -479,6 +481,13 @@ static int cbtls_verify(int ok, X509_STORE_CTX *ctx)
 				}
 			}
 		} /* check_cert_cn */
+		if (my_ok && conf->check_ocsp){
+			RDEBUG2("--> Starting OCSP Request");
+			if(X509_STORE_CTX_get1_issuer(&issuer_cert, ctx, client_cert)!=1)
+				radlog(L_ERR, "Error: Couldn't get issuer_cert for %s", common_name);
+			my_ok = ocsp_check(ocsp_store, issuer_cert, client_cert, conf);
+		}
+
 	} /* depth == 0 */
 
 	if (debug_flag > 0) {
