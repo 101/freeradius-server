@@ -43,6 +43,9 @@ RCSID("$Id$")
 #include <sys/stat.h>
 #endif
 
+/* OCSP Header */
+#include <openssl/ocsp.h>
+
 static CONF_PARSER cache_config[] = {
 	{ "enable", PW_TYPE_BOOLEAN,
 	  offsetof(EAP_TLS_CONF, session_cache_enable), NULL, "no" },
